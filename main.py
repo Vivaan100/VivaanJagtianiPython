@@ -63,7 +63,7 @@ class Game:
                 if event.type == pg.QUIT:
                     self.running = False
 
-        # pg.quit()
+        # pg.quit() if something happens in the event, the game will quit.
         # process
     def update(self):
         self.all_sprites.update()
