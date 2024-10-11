@@ -30,6 +30,10 @@ class Game:
     def new(self):
         self.load_data()
         self.all_sprites = pg.sprite.Group()
+        self.all_walls = pg.sprite.Group()
+        self.all_mobs = pg.sprite.Group()
+        self.all_powerups = pg.sprite.Group()
+        self.all_coins = pg.sprite.Group()
         # COMMENTED THIS PIECE OF CODE OUT(WE CAN USE IT LATER BY UNCOMMENTING IT)
         # self.player = Player(self, 1, 1)
         # instantiated a mob
