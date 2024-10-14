@@ -118,6 +118,38 @@ class Wall(Sprite):
         self.image.fill(BLUE)
         self.rect.x = x * TILESIZE
         self.rect.y = y * TILESIZE
+# Create another sprite class
+class Box(Sprite):
+    def__init__(self, color, width, height):
+        super()__init__()
+        self.image = pygame.Surface((width, height))
+        self.image.fill(color)
+        self.rect = self.image.get_rect()
+
+    def update(self):
+        # updates sprite's position
+        self.rect.y +=1 
+        if self.rect.y > height: 
+            self.rect.y = -self.rect.height
+
+# create sprite groups
+all_sprites = pygame.sprite.Group()
+Box = Box(BLACK)
+Box.rect.x =  450 
+Box.rect.y = 450
+all_sprites.add(Box)
+
+while True:
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+
+    all_sprites.update()
+screen.fill(WHITE)
+
+
+    
+    
+    
 
     def update(self):
         pass
