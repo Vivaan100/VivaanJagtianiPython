@@ -1,8 +1,12 @@
-# This file was created by: Vivaan Jagtiani
 import pygame as pg
 from pygame.sprite import Sprite
-from settings import *
 import random
+
+'''
+USE OF AI:
+CHATGPT: HOW TO CREATE A COIN COLLECTOR
+USED IT TO HELP ME CREATE A SPRITE COLLECTER
+'''
 
 # Constants
 WIDTH, HEIGHT = 800, 600
@@ -10,24 +14,26 @@ TILESIZE = 32
 RED = (255, 0, 0)
 GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
+YELLOW = (255, 255, 0)  # Added yellow color
 PINK = (255, 105, 180)
 
-class Player(Sprite):# creating the player class, which stores all of the data for it
+class Player(Sprite):
     def __init__(self, game, x, y):
         self.game = game
         self.groups = game.all_sprites
         Sprite.__init__(self, self.groups)
         self.image = pg.Surface((TILESIZE, TILESIZE))
         self.rect = self.image.get_rect()
-        self.image.fill(RED)# color of the player
+        self.image.fill(RED)
         self.x = x * TILESIZE
         self.y = y * TILESIZE
-        self.speed = 200  # Speed in pixels per second
+        self.speed = 700  # Speed of player in pixels per second, so 200 pixels per second
         self.vx, self.vy = 0, 0
+        self.coins_collected = 0
 
-    def get_keys(self):# movement of the player using the arrow keys
+    def get_keys(self):
         keys = pg.key.get_pressed()
-        self.vx, self.vy = 0, 0  # Reset velocity
+        self.vx, self.vy = 0, 0  # using these to make the player move with the arrow keys
         if keys[pg.K_UP]:
             self.vy -= self.speed
         if keys[pg.K_LEFT]:
@@ -42,7 +48,7 @@ class Player(Sprite):# creating the player class, which stores all of the data f
             hits = pg.sprite.spritecollide(self, self.game.all_walls, False)
             if hits:
                 if self.vx > 0:  # Moving right
-                    self.x = hits[0].rect.left - TILESIZE# all once the player hits the wall
+                    self.x = hits[0].rect.left - TILESIZE
                 if self.vx < 0:  # Moving left
                     self.x = hits[0].rect.right
                 self.vx = 0
@@ -68,9 +74,8 @@ class Player(Sprite):# creating the player class, which stores all of the data f
 
         self.rect.y = self.y
         self.collide_with_walls('y')
-# player updates whenever there is a collision
 
-class Mob(Sprite):# creating the mob class, which stores all of the information for it
+class Mob(Sprite):
     def __init__(self, game, x, y):
         self.game = game
         self.groups = game.all_sprites
@@ -80,73 +85,98 @@ class Mob(Sprite):# creating the mob class, which stores all of the information 
         self.image.fill(GREEN)
         self.rect.x = x * TILESIZE
         self.rect.y = y * TILESIZE
-        self.speed = 100
+        self.speed = 300
         self.direction = 1  # 1 for right, -1 for left
 
     def update(self):
         self.rect.x += self.speed * self.direction * self.game.dt
         if self.rect.left < 0 or self.rect.right > WIDTH:
-            self.direction *= -1  # when player hits the walls, it will change direction
+            self.direction *= -1  # Change direction when Player hits wall
+        self.collide_with_walls()
 
+    def collide_with_walls(self):
+        hits = pg.sprite.spritecollide(self, self.game.all_walls, False)
+        if hits:
+            if self.direction > 0:  # Move right when hit wall
+                self.rect.right = hits[0].rect.left
+            if self.direction < 0:  # Move left when hit wall
+                self.rect.left = hits[0].rect.right
+            self.direction *= -1 #change direction???
 
-class Wall(Sprite):# creating the wall sprites, which stores all of the data for it
-    def __init__(self, game, x, y):
+class Wall(Sprite):
+    def __init__(self, game, x, y): # intialize sprites(wall)
         self.game = game
         self.groups = game.all_sprites, game.all_walls
         Sprite.__init__(self, self.groups)
-        self.image = pg.Surface((TILESIZE, TILESIZE))
+        self.image = pg.Surface((TILESIZE, TILESIZE))# creating physical image of wall
         self.rect = self.image.get_rect()
-        self.image.fill(BLUE)
+        self.image.fill(BLUE) # creating the color of the wall(Blue)
         self.rect.x = x * TILESIZE
         self.rect.y = y * TILESIZE
 
-# making the game class
+class Coin(Sprite):
+    def __init__(self, game, x, y): # initializing sprite(Coin)
+        self.game = game
+        self.groups = game.all_sprites
+        Sprite.__init__(self, self.groups)
+        self.image = pg.Surface((TILESIZE, TILESIZE))# creating image of coin
+        self.rect = self.image.get_rect()
+        self.image.fill(YELLOW)# color of the coin
+        self.rect.x = x * TILESIZE
+        self.rect.y = y * TILESIZE
+
 class Game:
-    def __init__(self):
+    def __init__(self): # initializing game
         pg.init()
         self.screen = pg.display.set_mode((WIDTH, HEIGHT))
-        self.clock = pg.time.Clock()#time
+        self.clock = pg.time.Clock()
         self.all_sprites = pg.sprite.Group()
         self.all_walls = pg.sprite.Group()
+        self.all_coins = pg.sprite.Group()  # Group for coins
         
-        self.player = Player(self, 5, 5) # Starts the  player at [position (5, 5)
+        self.player = Player(self, 5, 5)  # Start player at (5, 5)
         
         # Create walls
         for x in range(0, WIDTH // TILESIZE):
             Wall(self, x, HEIGHT // TILESIZE - 1)  
         for y in range(0, HEIGHT // TILESIZE):
             Wall(self, 0, y)  # Left wall
-            Wall(self, WIDTH // TILESIZE - 1, y)  
-        
+            Wall(self, WIDTH // TILESIZE - 1, y)  # Right wall
         
         for x in range(5, 15):
-            Wall(self, x, 10)
+            Wall(self, x, 10)  # Create horizontal wall
+
+        # Create coins
+        for x in range(7, 10):
+            Coin(self, x, 5)  # Add coins at specific positions
 
         # Create a mob
-        self.mob = Mob(self, 3, 5)  # Start mob at the position (3, 5)
+        self.mob = Mob(self, 3, 5)  # Start mob at (3, 5)
 
+        self.coins_collected = 0  # Initialize collected coins count
         self.running = True
 
-    def run(self):# whatever happens while running the game
+    def run(self):
         while self.running:
-            self.dt = self.clock.tick(60) / 1000  
+            self.dt = self.clock.tick(60) / 1000  # Amount of seconds between each loop
             for event in pg.event.get():
                 if event.type == pg.QUIT:
                     self.running = False
             
             self.all_sprites.update()  # Update all sprites
-            self.screen.fill((0, 0, 0))  # Fill the screen with a background color(white)
-            self.all_sprites.draw(self.screen)  # Draw all sprites so that we can see them on the screen
-            pg.display.flip()  
+            self.collide_with_coins()  # Check for coin collection
+            
+            self.screen.fill((0, 0, 0))  # Fill the screen with black
+            self.all_sprites.draw(self.screen)  # Draw all sprites
+            pg.display.flip()  # Update the display
 
-    
-    def collide_with_coins(self):
-        hits = pg.sprite.spritecollide(self, self.game.all_coins, True)
+        pg.quit()  # Quit Pygame when done
+
+def collect_coins(self):
+        hits = pg.sprite.spritecollide(self, self.game.all_coins, True)  # Collect coins
         for hit in hits:
-            self.coins += 1
-            print(f"Coins collected: {self.coins}")
-
-        pg.quit()
+            self.game.coins_collected += 1  # Increment coin count
+            print(f"Coins collected: {self.game.coins_collected}")
 
 if __name__ == "__main__":
     game = Game()
