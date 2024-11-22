@@ -2,12 +2,6 @@ import pygame as pg
 from pygame.sprite import Sprite
 import random
 
-'''
-USE OF AI:
-CHATGPT: HOW TO CREATE A COIN COLLECTOR
-USED IT TO HELP ME CREATE A SPRITE COLLECTER
-'''
-
 # Constants
 WIDTH, HEIGHT = 800, 600
 TILESIZE = 32
@@ -19,6 +13,7 @@ PINK = (255, 105, 180)
 
 class Player(Sprite):
     def __init__(self, game, x, y):
+        self.health = 100
         self.game = game
         self.groups = game.all_sprites
         Sprite.__init__(self, self.groups)
@@ -64,6 +59,13 @@ class Player(Sprite):
                 self.vy = 0
             self.rect.y = self.y
 
+    def collect_coins(self):
+        # Check for collisions with coins and collect them
+        hits = pg.sprite.spritecollide(self, self.game.all_coins, True)  # 'True' removes the coin
+        for hit in hits:
+            self.game.coins_collected += 1  # Increment coin count
+            print(f"Coins collected: {self.game.coins_collected}")
+
     def update(self):
         self.get_keys()
         self.x += self.vx * self.game.dt
@@ -74,6 +76,9 @@ class Player(Sprite):
 
         self.rect.y = self.y
         self.collide_with_walls('y')
+
+        self.collect_coins()  # Check for coin collection after moving
+
 
 class Mob(Sprite):
     def __init__(self, game, x, y):
@@ -113,11 +118,21 @@ class Wall(Sprite):
         self.image.fill(BLUE) # creating the color of the wall(Blue)
         self.rect.x = x * TILESIZE
         self.rect.y = y * TILESIZE
+    def update(self):
+            # Movement code here...
+        
+        # Check for collision with mobs
+        if pg.sprite.spritecollide(self, self.game.all_mobs, False):
+            self.health -= 10  # Reduce health
+            print(f"Health: {self.health}")
+            if self.health <= 0:
+                self.game.running = False  # End game on death
+
 
 class Coin(Sprite):
     def __init__(self, game, x, y): # initializing sprite(Coin)
         self.game = game
-        self.groups = game.all_sprites
+        self.groups = game.all_sprites, game.all_coins
         Sprite.__init__(self, self.groups)
         self.image = pg.Surface((TILESIZE, TILESIZE))# creating image of coin
         self.rect = self.image.get_rect()
@@ -164,19 +179,23 @@ class Game:
                     self.running = False
             
             self.all_sprites.update()  # Update all sprites
-            self.collide_with_coins()  # Check for coin collection
             
             self.screen.fill((0, 0, 0))  # Fill the screen with black
             self.all_sprites.draw(self.screen)  # Draw all sprites
             pg.display.flip()  # Update the display
 
+        def new(self):
+            self.load_data()  # Loads map data, etc.
+            self.all_sprites = pg.sprite.Group()
+            self.all_walls = pg.sprite.Group()  # Group for walls
+            self.all_mobs = pg.sprite.Group()
+            self.all_powerups = pg.sprite.Group()
+            self.all_coins = pg.sprite.Group()
+
         pg.quit()  # Quit Pygame when done
 
-def collect_coins(self):
-        hits = pg.sprite.spritecollide(self, self.game.all_coins, True)  # Collect coins
-        for hit in hits:
-            self.game.coins_collected += 1  # Increment coin count
-            print(f"Coins collected: {self.game.coins_collected}")
+
+
 
 if __name__ == "__main__":
     game = Game()
