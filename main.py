@@ -2,34 +2,52 @@ import pygame as pg
 from settings import *
 from sprites import *
 from tilemap import *
-from os import *
+from os import path
 import sys
 from random import randint
+
+'''
+Goals: Collected all of the coins without touching the mobs before the timer ends.
+Freedom: You can move around freely
+Rules: You have to collect the coins without touching mobs.
+Feedback: You touch mob, then you die
+
+CHATGPT AI: 
+1.) Question: With this code(inserted code), can you explain how to add a score tally. 
+2.) Question: With this code(inserted code), can you explain how to fix my timer, as it does not work)
+3.) Question: Can you help me fix the walls, as the player is just going through them. 
+
+
+
+'''
 
 class Game:
     def __init__(self):
         pg.init()
         pg.mixer.init()
+        self.start_time = pg.time.get_ticks()  # Timer start time
         self.screen = pg.display.set_mode((WIDTH, HEIGHT))
         pg.display.set_caption("Vivaan's Game")
         self.clock = pg.time.Clock()
         self.running = True
-        self.score = 0  # Initialize the score to 0
+        self.score = 0  # Initialize the score to 0 at the beginning of every game.
+        self.all_coins = pg.sprite.Group()
+        self.coins_collected = 0
 
     def load_data(self):
         self.game_folder = path.dirname(__file__)
         self.map = Map(path.join(self.game_folder, 'level1.txt'))
 
     def new(self):
-        self.load_data()  # Loads all of the sprites
+        self.load_data()
         self.all_sprites = pg.sprite.Group()
         self.all_walls = pg.sprite.Group()
         self.all_mobs = pg.sprite.Group()
         self.all_powerups = pg.sprite.Group()
         self.all_coins = pg.sprite.Group()
+        self.start_time = pg.time.get_ticks()  # Reset timer on new game
 
-        # Parse the map data and create game objects
-        for row, tiles in enumerate(self.map.data):  # Connects to level1.txt
+        for row, tiles in enumerate(self.map.data):
             for col, tile in enumerate(tiles):
                 if tile == '1':
                     Wall(self, col, row)
@@ -42,7 +60,7 @@ class Game:
 
     def run(self):
         while self.running:
-            self.dt = self.clock.tick(FPS) / 1000  # The amount of time per frame
+            self.dt = self.clock.tick(FPS) / 1000
             self.events()
             self.update()
             self.draw()
@@ -50,26 +68,28 @@ class Game:
     def events(self):
         for event in pg.event.get():
             if event.type == pg.QUIT:
-                self.running = False  # Ends the game
+                self.running = False
 
     def update(self):
         self.all_sprites.update()
-        
-    # Update player's position based on velocity and colliding with walls
-        self.x += self.vx * self.game.dt
-        self.y += self.vy * self.game.dt
 
-   
-        self.rect.x = self.x
-        self.collide_with_walls
+        # Check elapsed time
+        elapsed_time = (pg.time.get_ticks() - self.start_time) / 1000
+        if elapsed_time > 30:  # Timer ends
+            self.show_game_over_screen()
+     
+    def game_over(self):
+        self.screen.fill(BLACK)  # Fill the screen with a black background
+        self.draw_text("GAME OVER", 48, WHITE, WIDTH / 2, HEIGHT / 4)  # Display the game-over message
+        self.draw_text("Press a key to restart", 22, WHITE, WIDTH / 2, HEIGHT / 2)  # Instruction to restart
 
-        self.rect.y = self.y
-        self.collide_with_walls  
+        pg.display.flip()  # Update the display
 
-        self.rect.x = self.x
-        self.rect.y = self.y
+        # Wait for the user to press a key
+        self.wait_for_key()
+        self.new()  # Restart the game        
 
-    def draw_text(self, surface, text, size, color, x, y):  # Font, colors, and position of the text
+    def draw_text(self, surface, text, size, color, x, y):
         font_name = pg.font.match_font('arial')
         font = pg.font.Font(font_name, size)
         text_surface = font.render(text, True, color)
@@ -83,98 +103,37 @@ class Game:
 
         # Display the score
         self.draw_text(self.screen, f"Score: {self.score}", 24, BLACK, WIDTH / 2, 10)
-        
-        self.draw_text(self.screen, str(int(self.dt * 1000)), 24, WHITE, WIDTH / 30, HEIGHT / 30)
-        self.draw_text(self.screen, "This game is sooooo...awesome...", 24, BLACK, WIDTH / 2, HEIGHT / 24)
+
+        # Display the countdown timer
+        elapsed_time = (pg.time.get_ticks() - self.start_time) / 1000
+        remaining_time = max(0, 30 - int(elapsed_time))  # Ensure no negative time
+        self.draw_text(self.screen, f"Time: {remaining_time}s", 24, BLACK, WIDTH / 2 + 100, 10)
+
         pg.display.flip()
-        self.draw_text(self.screen, str(int(self.dt * 2000)), 24, BLACK, WIDTH / 30, HEIGHT / 30)
-        self.draw_text(self.screen, "Health: ____", 24, BLACK, WIDTH / 200, HEIGHT / 40)
+
+    def show_game_over_screen(self):
+        self.screen.fill(RED)
+        self.draw_text(self.screen, "GAME OVER", 72, WHITE, WIDTH / 2, HEIGHT / 3)
+        self.draw_text(self.screen, f"Your Score: {self.score}", 36, WHITE, WIDTH / 2, HEIGHT / 2)
+        self.draw_text(self.screen, "Press R to Restart or Q to Quit", 24, WHITE, WIDTH / 2, HEIGHT / 1.5)
         pg.display.flip()
 
-
-class Player(Sprite):
-    def __init__(self, game, x, y):
-        self.game = game
-        self.groups = game.all_sprites
-        pg.sprite.Sprite.__init__(self, self.groups)
-        self.image = pg.Surface((TILESIZE, TILESIZE))
-        self.rect = self.image.get_rect()
-        self.image.fill(RED)
-        self.x = x * TILESIZE
-        self.y = y * TILESIZE
-        self.vx, self.vy = 0, 0
-        self.speed = 500  # Adjust player speed
-
-    def collide_with_walls(self, dir):
-        # Horizontal collision handling (left/right)
-        if dir == 'x':
-            hits = pg.sprite.spritecollide(self, self.game.all_walls, False)
-            if hits:
-                if self.vx > 0:  # Moving right
-                    self.x = hits[0].rect.left - TILESIZE
-                if self.vx < 0:  # Moving left
-                    self.x = hits[0].rect.right
-                self.vx = 0  # Stop horizontal movement
-            self.rect.x = self.x
-         # Vertical collision handling (up/down)
-        if dir == 'y':
-            hits = pg.sprite.spritecollide(self, self.game.all_walls, False)
-            if hits:
-                if self.vy > 0:  # Moving down
-                    self.y = hits[0].rect.top - TILESIZE
-                if self.vy < 0:  # Moving up
-                    self.y = hits[0].rect.bottom
-                self.vy = 0  # Stop vertical movement
-            self.rect.y = self.y
-
-    def update(self):
-        self.get_keys()
-        self.x += self.vx * self.game.dt
-        self.y += self.vy * self.game.dt
-
-        self.rect.x = self.x
-        self.rect.y = self.y
-
-        self.collide_with_walls()
-        self.collect_coins()
-
-    def get_keys(self):
-        keys = pg.key.get_pressed()
-        self.vx, self.vy = 0, 0
-        if keys[pg.K_UP]:
-            self.vy = -self.speed
-        if keys[pg.K_LEFT]:
-            self.vx = -self.speed
-        if keys[pg.K_DOWN]:
-            self.vy = self.speed
-        if keys[pg.K_RIGHT]:
-            self.vx = self.speed
-
-    def collide_with_walls(self):
-        # Placeholder method to handle wall collisions
-        pass
-
-    def collect_coins(self):
-        hits = pg.sprite.spritecollide(self, self.game.all_coins, True)  # Remove coin after collection
-        for hit in hits:
-            self.game.score += 1  # Increment the score when collecting a coin
-            print(f"Coins Collected: {self.game.score}")
-
-
-class Coin(pg.sprite.Sprite):
-    def __init__(self, game, x, y):
-        self.game = game
-        self.groups = game.all_sprites, game.all_coins
-        pg.sprite.Sprite.__init__(self, self.groups)
-        self.image = pg.Surface((TILESIZE, TILESIZE))
-        self.rect = self.image.get_rect()
-        self.image.fill(YELLOW)  # Coin color
-        self.rect.x = x * TILESIZE
-        self.rect.y = y * TILESIZE
-
-# Additional classes (Wall, Mob, etc.) will remain unchanged
+        waiting = True
+        while playing:
+            for event in pg.event.get():
+                if event.type == pg.QUIT:
+                    self.running = False
+                    playing = False
+                if event.type == pg.KEYDOWN:
+                    if event.key == pg.K_r:
+                        self.new()
+                        playing = False
+                    if event.key == pg.K_q:
+                        self.running = False
+                        playing = False
 
 if __name__ == "__main__":
     g = Game()
-    g.new()  # Initialize game elements
-    g.run()  # Start the game
+    g.new()
+    g.run()
+
