@@ -1,6 +1,5 @@
 import pygame as pg
 from pygame.sprite import Sprite
-import random
 
 # Constants
 WIDTH, HEIGHT = 800, 600
@@ -22,13 +21,12 @@ class Player(Sprite):
         self.image.fill(RED)
         self.x = x * TILESIZE
         self.y = y * TILESIZE
-        self.speed = 700  # Speed of player in pixels per second, so 200 pixels per second
+        self.speed = 700
         self.vx, self.vy = 0, 0
-        self.coins_collected = 0
 
     def get_keys(self):
         keys = pg.key.get_pressed()
-        self.vx, self.vy = 0, 0  # using these to make the player move with the arrow keys
+        self.vx, self.vy = 0, 0
         if keys[pg.K_UP]:
             self.vy -= self.speed
         if keys[pg.K_LEFT]:
@@ -39,31 +37,26 @@ class Player(Sprite):
             self.vx += self.speed
 
     def collide_with_walls(self, dir):
-        if dir == 'x':
-            hits = pg.sprite.spritecollide(self, self.game.all_walls, False)
-            if hits:
+        hits = pg.sprite.spritecollide(self, self.game.all_walls, False)
+        if hits:
+            if dir == 'x':  # Horizontal collisions
                 if self.vx > 0:  # Moving right
-                    self.x = hits[0].rect.left - TILESIZE
-                if self.vx < 0:  # Moving left
-                    self.x = hits[0].rect.right
-                self.vx = 0
-            self.rect.x = self.x
-
-        if dir == 'y':
-            hits = pg.sprite.spritecollide(self, self.game.all_walls, False)
-            if hits:
+                    self.rect.right = hits[0].rect.left
+                elif self.vx < 0:  # Moving left
+                    self.rect.left = hits[0].rect.right
+                self.vx = 0  # Stop horizontal movement
+                self.x = self.rect.x  # Update precise position
+            elif dir == 'y':  # Vertical collisions
                 if self.vy > 0:  # Moving down
-                    self.y = hits[0].rect.top - TILESIZE
-                if self.vy < 0:  # Moving up
-                    self.y = hits[0].rect.bottom
-                self.vy = 0
-            self.rect.y = self.y
-
+                    self.rect.bottom = hits[0].rect.top
+                elif self.vy < 0: 
+                    self.rect.top = hits[0].rect.bottom
+                self.vy = 0  # Stop vertical movement
+                self.y = self.rect.y  
     def collect_coins(self):
-        # Check for collisions with coins and collect them
-        hits = pg.sprite.spritecollide(self, self.game.all_coins, True)  # 'True' removes the coin
+        hits = pg.sprite.spritecollide(self, self.game.all_coins, True)  # Remove coins upon collision
         for hit in hits:
-            self.game.coins_collected += 1  # Increment coin count
+            self.game.coins_collected += 1  # Increment coins collected
             print(f"Coins collected: {self.game.coins_collected}")
 
     def update(self):
@@ -77,7 +70,11 @@ class Player(Sprite):
         self.rect.y = self.y
         self.collide_with_walls('y')
 
-        self.collect_coins()  # Check for coin collection after moving
+        self.collect_coins()
+        # Check for collision with mobs
+        if pg.sprite.spritecollide(self, self.game.all_mobs, False):  # If the player collides with a mob
+            self.game.running = False  # Stop the game loop
+            self.game.game_over()  # Call the game-over function
 
 
 class Mob(Sprite):
@@ -99,28 +96,30 @@ class Mob(Sprite):
             self.direction *= -1  # Change direction when Player hits wall
         self.collide_with_walls()
 
-    def collide_with_walls(self):
+    def collide_with_walls(self):  # What happens to direction when the mobs collide with the wall
         hits = pg.sprite.spritecollide(self, self.game.all_walls, False)
         if hits:
             if self.direction > 0:  # Move right when hit wall
                 self.rect.right = hits[0].rect.left
             if self.direction < 0:  # Move left when hit wall
                 self.rect.left = hits[0].rect.right
-            self.direction *= -1 #change direction???
+            self.direction *= -1  # Change direction
 
-class Wall(Sprite):
-    def __init__(self, game, x, y): # intialize sprites(wall)
+
+class Wall(Sprite):  # Creating the wall sprite
+    def __init__(self, game, x, y):
         self.game = game
         self.groups = game.all_sprites, game.all_walls
         Sprite.__init__(self, self.groups)
-        self.image = pg.Surface((TILESIZE, TILESIZE))# creating physical image of wall
+        self.image = pg.Surface((TILESIZE, TILESIZE))  # Creating physical image of wall
         self.rect = self.image.get_rect()
-        self.image.fill(BLUE) # creating the color of the wall(Blue)
+        self.image.fill(BLUE)  # Creating the color of the wall(Blue)
         self.rect.x = x * TILESIZE
         self.rect.y = y * TILESIZE
+
     def update(self):
-            # Movement code here...
-        
+        # Movement code here...
+
         # Check for collision with mobs
         if pg.sprite.spritecollide(self, self.game.all_mobs, False):
             self.health -= 10  # Reduce health
@@ -130,73 +129,12 @@ class Wall(Sprite):
 
 
 class Coin(Sprite):
-    def __init__(self, game, x, y): # initializing sprite(Coin)
+    def __init__(self, game, x, y):  # Initializing sprite(Coin)
         self.game = game
         self.groups = game.all_sprites, game.all_coins
         Sprite.__init__(self, self.groups)
-        self.image = pg.Surface((TILESIZE, TILESIZE))# creating image of coin
+        self.image = pg.Surface((TILESIZE, TILESIZE))  # Creating image of coin
         self.rect = self.image.get_rect()
-        self.image.fill(YELLOW)# color of the coin
+        self.image.fill(YELLOW)  # Color of the coin
         self.rect.x = x * TILESIZE
         self.rect.y = y * TILESIZE
-
-class Game:
-    def __init__(self): # initializing game
-        pg.init()
-        self.screen = pg.display.set_mode((WIDTH, HEIGHT))
-        self.clock = pg.time.Clock()
-        self.all_sprites = pg.sprite.Group()
-        self.all_walls = pg.sprite.Group()
-        self.all_coins = pg.sprite.Group()  # Group for coins
-        
-        self.player = Player(self, 5, 5)  # Start player at (5, 5)
-        
-        # Create walls
-        for x in range(0, WIDTH // TILESIZE):
-            Wall(self, x, HEIGHT // TILESIZE - 1)  
-        for y in range(0, HEIGHT // TILESIZE):
-            Wall(self, 0, y)  # Left wall
-            Wall(self, WIDTH // TILESIZE - 1, y)  # Right wall
-        
-        for x in range(5, 15):
-            Wall(self, x, 10)  # Create horizontal wall
-
-        # Create coins
-        for x in range(7, 10):
-            Coin(self, x, 5)  # Add coins at specific positions
-
-        # Create a mob
-        self.mob = Mob(self, 3, 5)  # Start mob at (3, 5)
-
-        self.coins_collected = 0  # Initialize collected coins count
-        self.running = True
-
-    def run(self):
-        while self.running:
-            self.dt = self.clock.tick(60) / 1000  # Amount of seconds between each loop
-            for event in pg.event.get():
-                if event.type == pg.QUIT:
-                    self.running = False
-            
-            self.all_sprites.update()  # Update all sprites
-            
-            self.screen.fill((0, 0, 0))  # Fill the screen with black
-            self.all_sprites.draw(self.screen)  # Draw all sprites
-            pg.display.flip()  # Update the display
-
-        def new(self):
-            self.load_data()  # Loads map data, etc.
-            self.all_sprites = pg.sprite.Group()
-            self.all_walls = pg.sprite.Group()  # Group for walls
-            self.all_mobs = pg.sprite.Group()
-            self.all_powerups = pg.sprite.Group()
-            self.all_coins = pg.sprite.Group()
-
-        pg.quit()  # Quit Pygame when done
-
-
-
-
-if __name__ == "__main__":
-    game = Game()
-    game.run()
