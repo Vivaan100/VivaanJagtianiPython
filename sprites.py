@@ -1,14 +1,6 @@
 import pygame as pg
 from pygame.sprite import Sprite
-
-# Constants
-WIDTH, HEIGHT = 800, 600
-TILESIZE = 32
-RED = (255, 0, 0)
-GREEN = (0, 255, 0)
-BLUE = (0, 0, 255)
-YELLOW = (255, 255, 0)  # Added yellow color
-PINK = (255, 105, 180)
+from settings import *
 
 class Player(Sprite):
     def __init__(self, game, x, y):
@@ -23,6 +15,7 @@ class Player(Sprite):
         self.y = y * TILESIZE
         self.speed = 700
         self.vx, self.vy = 0, 0
+        self.coins_collected = 0  # Track coins collected
 
     def get_keys(self):
         keys = pg.key.get_pressed()
@@ -53,11 +46,17 @@ class Player(Sprite):
                     self.rect.top = hits[0].rect.bottom
                 self.vy = 0  # Stop vertical movement
                 self.y = self.rect.y  
+
     def collect_coins(self):
         hits = pg.sprite.spritecollide(self, self.game.all_coins, True)  # Remove coins upon collision
         for hit in hits:
-            self.game.coins_collected += 1  # Increment coins collected
-            print(f"Coins collected: {self.game.coins_collected}")
+            self.coins_collected += 1  # Increment coins collected
+            print(f"Coins collected: {self.coins_collected}")
+
+    def check_mob_collision(self):
+        # Check if player touches a mob
+        if pg.sprite.spritecollide(self, self.game.all_mobs, False):
+            self.game.show_game_over_screen()  # End game immediately
 
     def update(self):
         self.get_keys()
@@ -71,16 +70,13 @@ class Player(Sprite):
         self.collide_with_walls('y')
 
         self.collect_coins()
-        # Check for collision with mobs
-        if pg.sprite.spritecollide(self, self.game.all_mobs, False):  # If the player collides with a mob
-            self.game.running = False  # Stop the game loop
-            self.game.game_over()  # Call the game-over function
+        self.check_mob_collision()  # Check for mob collisions in each update cycle
 
 
 class Mob(Sprite):
     def __init__(self, game, x, y):
         self.game = game
-        self.groups = game.all_sprites
+        self.groups = game.all_sprites, game.all_mobs
         Sprite.__init__(self, self.groups)
         self.image = pg.Surface((TILESIZE, TILESIZE))
         self.rect = self.image.get_rect()
@@ -92,49 +88,43 @@ class Mob(Sprite):
 
     def update(self):
         self.rect.x += self.speed * self.direction * self.game.dt
-        if self.rect.left < 0 or self.rect.right > WIDTH:
-            self.direction *= -1  # Change direction when Player hits wall
         self.collide_with_walls()
 
-    def collide_with_walls(self):  # What happens to direction when the mobs collide with the wall
+        if self.rect.left < 0 or self.rect.right > WIDTH:
+            self.direction *= -1  # Change direction when Mob hits wall
+
+    def collide_with_walls(self):
         hits = pg.sprite.spritecollide(self, self.game.all_walls, False)
         if hits:
-            if self.direction > 0:  # Move right when hit wall
+            if self.direction > 0:  # Moving right
                 self.rect.right = hits[0].rect.left
-            if self.direction < 0:  # Move left when hit wall
+            if self.direction < 0:  # Moving left
                 self.rect.left = hits[0].rect.right
-            self.direction *= -1  # Change direction
+            self.direction *= -1  # Change direction when wall is hit
 
 
-class Wall(Sprite):  # Creating the wall sprite
+class Wall(Sprite):
     def __init__(self, game, x, y):
         self.game = game
         self.groups = game.all_sprites, game.all_walls
         Sprite.__init__(self, self.groups)
-        self.image = pg.Surface((TILESIZE, TILESIZE))  # Creating physical image of wall
+        self.image = pg.Surface((TILESIZE, TILESIZE))  # Wall image
         self.rect = self.image.get_rect()
-        self.image.fill(BLUE)  # Creating the color of the wall(Blue)
+        self.image.fill(BLUE)  # Blue wall color
         self.rect.x = x * TILESIZE
         self.rect.y = y * TILESIZE
 
     def update(self):
-        # Movement code here...
-
-        # Check for collision with mobs
-        if pg.sprite.spritecollide(self, self.game.all_mobs, False):
-            self.health -= 10  # Reduce health
-            print(f"Health: {self.health}")
-            if self.health <= 0:
-                self.game.running = False  # End game on death
+        pass  # Static, no update needed
 
 
 class Coin(Sprite):
-    def __init__(self, game, x, y):  # Initializing sprite(Coin)
+    def __init__(self, game, x, y):
         self.game = game
         self.groups = game.all_sprites, game.all_coins
         Sprite.__init__(self, self.groups)
-        self.image = pg.Surface((TILESIZE, TILESIZE))  # Creating image of coin
+        self.image = pg.Surface((TILESIZE, TILESIZE))  # Coin image
         self.rect = self.image.get_rect()
-        self.image.fill(YELLOW)  # Color of the coin
+        self.image.fill(YELLOW)  # Yellow coin color
         self.rect.x = x * TILESIZE
         self.rect.y = y * TILESIZE
